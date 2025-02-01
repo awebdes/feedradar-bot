@@ -53,7 +53,7 @@ async def handle_link(message: types.Message):
 async def parse_google_play(url, message):
     try:
         app_id = url.split("id=")[1].split("&")[0]
-        reviews, _ = gp_reviews(app_id, lang='ru', count=100)
+        reviews, _ = gp_reviews(app_id, lang='ru', count=500)
         csv_filename = save_to_csv(reviews, "google_play")
         await send_csv(message, csv_filename)
     except Exception as e:
