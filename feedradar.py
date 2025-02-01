@@ -14,6 +14,8 @@ from flask import Flask
 # Настройки бота
 API_TOKEN = os.getenv("8177571130:AAGsv2MswKTQmLcyKuH76PU2yOdh8EUjUwE")  # Используем переменную окружения для токена
 bot = Bot(token=API_TOKEN)
+if not API_TOKEN:
+    raise ValueError("API_TOKEN не найден! Убедитесь, что он задан в переменных окружения.")
 dp = Dispatcher(bot)
 
 # Временная папка для файлов
