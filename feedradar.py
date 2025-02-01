@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Проверяем, что токен установлен
-API_TOKEN = os.getenv("8177571130:AAGsv2MswKTQmLcyKuH76PU2yOdh8EUjUwE")
+API_TOKEN = os.getenv("API_TOKEN")
 if not API_TOKEN:
     raise ValueError("Токен не найден! Убедись, что переменная окружения API_TOKEN установлена.")
 
