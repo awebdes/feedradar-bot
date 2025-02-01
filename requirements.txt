@@ -2,3 +2,4 @@ aiogram==2.21
 google-play-scraper==1.0.5
 app-store-scraper==0.3.0
 Flask==2.3.2
+python-dotenv==1.0.0
