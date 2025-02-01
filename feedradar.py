@@ -1,6 +1,9 @@
 import os
 import csv
 import threading
+import asyncio
+import re
+from urllib.parse import urlparse, parse_qs
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InputFile
 from aiogram.utils import executor
@@ -15,8 +18,7 @@ dp = Dispatcher(bot)
 
 # Временная папка для файлов
 TEMP_FOLDER = "temp"
-if not os.path.exists(TEMP_FOLDER):
-    os.makedirs(TEMP_FOLDER)
+os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 # Инициализация Flask приложения
 app = Flask(__name__)
@@ -33,7 +35,7 @@ async def send_welcome(message: types.Message):
 # Обработка ссылки
 @dp.message_handler()
 async def handle_link(message: types.Message):
-    url = message.text
+    url = message.text.strip()
     if "play.google.com" in url:
         await parse_google_play(url, message)
     elif "apps.apple.com" in url:
@@ -44,32 +46,52 @@ async def handle_link(message: types.Message):
 # Парсинг Google Play
 async def parse_google_play(url, message):
     try:
-        app_id = url.split("id=")[1].split("&")[0]
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        app_id = query_params.get("id", [None])[0]
+        
+        if not app_id:
+            await message.reply("Не удалось извлечь ID приложения из ссылки.")
+            return
+
         reviews, _ = gp_reviews(app_id, lang='ru', count=100)
         csv_filename = save_to_csv(reviews, "google_play")
         await send_csv(message, csv_filename)
     except Exception as e:
-        await message.reply(f"Ошибка: {e}")
+        await message.reply(f"Ошибка при парсинге Google Play: {e}")
 
 # Парсинг App Store
 async def parse_app_store(url, message):
     try:
-        app_id = url.split("id")[1].split("?")[0]
-        app = AppStore(country="ru", app_name=app_id, app_id=app_id)
-        app.review()
+        match = re.search(r'id(\d+)', url)
+        if not match:
+            await message.reply("Не удалось извлечь ID приложения из ссылки.")
+            return
+        
+        app_id = match.group(1)
+        app = AppStore(country="ru", app_id=app_id)
+        
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, app.review)  # Запускаем парсинг в потоке
+
         csv_filename = save_to_csv(app.reviews, "app_store")
         await send_csv(message, csv_filename)
     except Exception as e:
-        await message.reply(f"Ошибка: {e}")
+        await message.reply(f"Ошибка при парсинге App Store: {e}")
 
 # Сохранение в CSV
 def save_to_csv(data, platform):
     csv_filename = os.path.join(TEMP_FOLDER, f"{platform}_reviews.csv")
     with open(csv_filename, mode="w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, quoting=csv.QUOTE_ALL)
         writer.writerow(["User", "Rating", "Review", "Date"])
         for item in data:
-            writer.writerow([item.get("userName"), item.get("score"), item.get("content"), item.get("at")])
+            writer.writerow([
+                item.get("userName", "Unknown"),
+                item.get("score", "No rating"),
+                item.get("content", "").replace("\n", " "),
+                item.get("at", "")
+            ])
     return csv_filename
 
 # Отправка CSV-файла
@@ -85,7 +107,7 @@ def run_flask():
 
 if __name__ == '__main__':
     # Запускаем Flask в отдельном потоке
-    flask_thread = threading.Thread(target=run_flask)
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
     # Запускаем бота
