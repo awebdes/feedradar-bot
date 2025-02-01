@@ -53,7 +53,13 @@ async def handle_link(message: types.Message):
 async def parse_google_play(url, message):
     try:
         app_id = url.split("id=")[1].split("&")[0]
-        reviews, _ = gp_reviews(app_id, lang='ru', count=500)
+        reviews = []
+        continuation_token = None
+        while True:
+            batch, continuation_token = gp_reviews(app_id, lang='ru', count=100, continuation_token=continuation_token)
+            reviews.extend(batch)
+            if not continuation_token or len(reviews) >= 1000:  # Ограничение на 1000 отзывов
+                break
         csv_filename = save_to_csv(reviews, "google_play")
         await send_csv(message, csv_filename)
     except Exception as e:
@@ -64,7 +70,7 @@ async def parse_app_store(url, message):
     try:
         app_id = url.split("id")[1].split("?")[0]
         app = AppStore(country="ru", app_name=app_id, app_id=app_id)
-        app.review()
+        app.review(how_many=1000)  # Получить до 1000 отзывов
         csv_filename = save_to_csv(app.reviews, "app_store")
         await send_csv(message, csv_filename)
     except Exception as e:
