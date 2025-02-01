@@ -1,13 +1,15 @@
 import os
 import csv
+import threading
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InputFile
 from aiogram.utils import executor
 from google_play_scraper import app as gp_app, reviews as gp_reviews
 from app_store_scraper import AppStore
+from flask import Flask
 
 # Настройки бота
-API_TOKEN = '8177571130:AAGsv2MswKTQmLcyKuH76PU2yOdh8EUjUwE'
+API_TOKEN = os.getenv("8177571130:AAGsv2MswKTQmLcyKuH76PU2yOdh8EUjUwE")  # Используем переменную окружения для токена
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
@@ -15,6 +17,13 @@ dp = Dispatcher(bot)
 TEMP_FOLDER = "temp"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
+
+# Инициализация Flask приложения
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Бот работает! Отправьте ссылку на приложение в Google Play или App Store."
 
 # Обработка команды /start
 @dp.message_handler(commands=['start'])
@@ -69,6 +78,15 @@ async def send_csv(message, csv_filename):
         await message.reply_document(InputFile(file))
     os.remove(csv_filename)
 
-# Запуск бота
+# Запуск Flask в отдельном потоке
+def run_flask():
+    port = int(os.getenv("PORT", 10000))  # Используем порт из переменной окружения
+    app.run(host='0.0.0.0', port=port)
+
 if __name__ == '__main__':
+    # Запускаем Flask в отдельном потоке
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+
+    # Запускаем бота
     executor.start_polling(dp, skip_updates=True)
