@@ -70,7 +70,7 @@ async def parse_app_store(url, message):
     try:
         app_id = url.split("id")[1].split("?")[0]
         app = AppStore(country="ru", app_name=app_id, app_id=app_id)
-        app.review(how_many=1000)  # Получить до 1000 отзывов
+        app.review(how_many=3000)  # Получить до 1000 отзывов
         csv_filename = save_to_csv(app.reviews, "app_store")
         await send_csv(message, csv_filename)
     except Exception as e:
